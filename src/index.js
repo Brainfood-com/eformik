@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import {withStyles} from '@material-ui/core/styles'
 import hoistNonReactStatics from 'hoist-non-react-statics'
 
-import {Formik, Field as FormikField, connect as connectFormik, useField} from 'formik'
+import {Formik, Field as FormikField, connect as connectFormik, useField, useFormikContext} from 'formik'
 
 import DoneIcon from '@material-ui/icons/Done'
 import SettingsBackupRestoreIcon from '@material-ui/icons/SettingsBackupRestore'
@@ -76,6 +76,23 @@ export const EFormikButton = connectFormik(class EFormikButton extends React.Com
   }
 })
 
+function EFormikRender(props) {
+  const {children} = props
+  const [initialMount, setInitialMount] = React.useState(true)
+
+  if (initialMount) {
+    setInitialMount(false)
+    const {validateOnInitial} = props
+    if (validateOnInitial) {
+      const formik = useFormikContext()
+      const {isValid, validateForm} = formik
+      if (!isValid) {
+        validateForm()
+      }
+    }
+  }
+  return React.Children.only(children)
+}
 class EFormik extends React.Component {
   static propTypes = {
     validateOnInitial: PropTypes.bool,
@@ -89,10 +106,6 @@ class EFormik extends React.Component {
     perFieldReset: true,
   }
 
-  state = {
-    initialMount: true,
-  }
-
   handleOnReset = (values, formik) => {
     const {validateOnReset, onReset} = this.props
     if (validateOnReset) {
@@ -102,28 +115,14 @@ class EFormik extends React.Component {
     }
   }
 
-  formikRender = formik => {
-    this.setState((state, props) => {
-      const {initialMount} = state
-      if (initialMount) {
-        const {validateOnInitial} = this.props
-        if (validateOnInitial) {
-          const {isValid, validateForm} = formik
-          if (!isValid) {
-            validateForm()
-          }
-        }
-        return {initialMount: false}
-      }
-    })
-    const {children} = this.props
-    return React.Children.only(children)
-  }
-
   render() {
     const {perFieldReset, validateOnInitial, validateOnReset, component, render, children, onReset,  ...props} = this.props
     const eFormikCtx = {perFieldReset, validateOnInitial, validateOnReset}
-    return <EFormikProvider value={eFormikCtx}><Formik {...props} onReset={this.handleOnReset} render={this.formikRender}/></EFormikProvider>
+    return <EFormikProvider value={eFormikCtx}>
+      <Formik {...props} onReset={this.handleOnReset}>
+        <EFormikRender validateOnInitial={validateOnInitial} children={children}/>
+      </Formik>
+    </EFormikProvider>
   }
 }
 
